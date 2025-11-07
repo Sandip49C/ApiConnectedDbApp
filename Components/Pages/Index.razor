@@ -1,0 +1,65 @@
+﻿@page "/"
+@using ApiConnectedDbApp.Models
+@inject IApiService ApiService
+@inject IDatabaseRepository DatabaseRepository
+@inject IJSRuntime JSRuntime
+
+<PageTitle>API-Connected DB App</PageTitle>
+
+<h1>Users from Local Database</h1>
+
+<button @onclick="FetchAndDisplayData" disabled="@isLoading">Fetch and Save Data</button>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (users.Any())
+{
+    <ul>
+        @foreach (var user in users)
+        {
+            <li>
+                <strong>@user.Name</strong> - @user.Email
+            </li>
+        }
+    </ul>
+}
+else
+{
+    <p>No data yet. Click the button to fetch!</p>
+}
+
+@code {
+    private List<User> users = new();
+    private bool isLoading = false;
+
+    private async Task FetchAndDisplayData()
+    {
+        isLoading = true;
+        StateHasChanged(); // Refresh UI.
+
+        try
+        {
+            // Step 1: Fetch from API.
+            var apiUsers = await ApiService.GetUsersAsync();
+
+            // Step 2: Save to DB.
+            await DatabaseRepository.InsertAllAsync(apiUsers);
+
+            // Step 3: Retrieve from DB.
+            users = await DatabaseRepository.GetAllAsync();
+
+            // Step 4: Display (already bound to UI).
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}
